@@ -1,0 +1,11 @@
+order_id,order_date,region,product,category,quantity,unit_price,total_amount
+1001,2026-01-02,Phnom Penh,Laptop,Electronics,2,850,1700
+1002,2026-01-03,Siem Reap,Keyboard,Accessories,5,25,125
+1003,2026-01-04,Battambang,Mouse,Accessories,8,18,144
+1004,2026-01-05,Phnom Penh,Server,Infrastructure,1,4200,4200
+1005,2026-01-06,Kampot,SSD,Storage,6,90,540
+1006,2026-01-07,Kandal,Monitor,Electronics,4,210,840
+1007,2026-01-08,Phnom Penh,Firewall,Cybersecurity,1,5500,5500
+1008,2026-01-09,Takeo,Access Point,Networking,7,160,1120
+1009,2026-01-10,Siem Reap,Switch,Networking,3,780,2340
+1010,2026-01-11,Banteay Meanchey,UPS,Power,2,650,1300

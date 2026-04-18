@@ -1,0 +1,380 @@
+name: ${PROJECT_NAME}
+
+x-hadoop-common: &hadoop-common
+  build:
+    context: ./docker/hadoop-base
+    args:
+      HADOOP_VERSION: ${HADOOP_VERSION}
+      SPARK_VERSION: ${SPARK_VERSION}
+  env_file:
+    - .env
+  environment:
+    TZ: ${TZ}
+  networks:
+    - bigdata
+  restart: unless-stopped
+
+services:
+  namenode:
+    <<: *hadoop-common
+    hostname: namenode
+    container_name: namenode
+    command: ["bash", "/opt/bootstrap/start-namenode.sh"]
+    ports:
+      - "9870:9870"
+      - "8020:8020"
+    volumes:
+      - namenode_data:/hadoop/dfs/name
+      - namenode_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+      - ./datasets:/datasets:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9870/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  datanode1:
+    <<: *hadoop-common
+    hostname: datanode1
+    container_name: datanode1
+    command: ["bash", "/opt/bootstrap/start-datanode.sh"]
+    depends_on:
+      namenode:
+        condition: service_healthy
+    volumes:
+      - datanode1_data:/hadoop/dfs/data
+      - datanode1_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "jps | grep -q DataNode"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+  datanode2:
+    <<: *hadoop-common
+    hostname: datanode2
+    container_name: datanode2
+    command: ["bash", "/opt/bootstrap/start-datanode.sh"]
+    depends_on:
+      namenode:
+        condition: service_healthy
+    volumes:
+      - datanode2_data:/hadoop/dfs/data
+      - datanode2_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+
+  datanode3:
+    <<: *hadoop-common
+    hostname: datanode3
+    container_name: datanode3
+    command: ["bash", "/opt/bootstrap/start-datanode.sh"]
+    depends_on:
+      namenode:
+        condition: service_healthy
+    volumes:
+      - datanode3_data:/hadoop/dfs/data
+      - datanode3_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+
+  resourcemanager:
+    <<: *hadoop-common
+    hostname: resourcemanager
+    container_name: resourcemanager
+    command: ["bash", "/opt/bootstrap/start-resourcemanager.sh"]
+    depends_on:
+      namenode:
+        condition: service_healthy
+    ports:
+      - "8088:8088"
+      - "8032:8032"
+    volumes:
+      - rm_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8088/ws/v1/cluster/info >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 70s
+
+  nodemanager1:
+    <<: *hadoop-common
+    hostname: nodemanager1
+    container_name: nodemanager1
+    command: ["bash", "/opt/bootstrap/start-nodemanager.sh"]
+    depends_on:
+      resourcemanager:
+        condition: service_healthy
+    volumes:
+      - nm1_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+
+  nodemanager2:
+    <<: *hadoop-common
+    hostname: nodemanager2
+    container_name: nodemanager2
+    command: ["bash", "/opt/bootstrap/start-nodemanager.sh"]
+    depends_on:
+      resourcemanager:
+        condition: service_healthy
+    volumes:
+      - nm2_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+
+  nodemanager3:
+    <<: *hadoop-common
+    hostname: nodemanager3
+    container_name: nodemanager3
+    command: ["bash", "/opt/bootstrap/start-nodemanager.sh"]
+    depends_on:
+      resourcemanager:
+        condition: service_healthy
+    volumes:
+      - nm3_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+
+  historyserver:
+    <<: *hadoop-common
+    hostname: historyserver
+    container_name: historyserver
+    command: ["bash", "/opt/bootstrap/start-historyserver.sh"]
+    depends_on:
+      resourcemanager:
+        condition: service_healthy
+    ports:
+      - "19888:19888"
+    volumes:
+      - history_logs:/opt/hadoop/logs
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:19888/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 70s
+
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    hostname: postgres
+    container_name: postgres-metastore
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - bigdata
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+
+  hive-metastore:
+    build:
+      context: ./docker/hive
+      args:
+        HIVE_VERSION: ${HIVE_VERSION}
+        HADOOP_VERSION: ${HADOOP_VERSION}
+    hostname: hive-metastore
+    container_name: hive-metastore
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ}
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      namenode:
+        condition: service_healthy
+    ports:
+      - "9083:9083"
+    volumes:
+      - hive_logs:/opt/hive/logs
+      - ./hive/conf:/opt/hive/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+    networks:
+      - bigdata
+    restart: unless-stopped
+    command: ["bash", "/opt/bootstrap/scripts/start-hive.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/9083' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  hiveserver2:
+    build:
+      context: ./docker/hive
+      args:
+        HIVE_VERSION: ${HIVE_VERSION}
+        HADOOP_VERSION: ${HADOOP_VERSION}
+    hostname: hiveserver2
+    container_name: hiveserver2
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ}
+      SERVICE_NAME: hiveserver2
+      DB_DRIVER: postgres
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+    volumes:
+      - hive_logs:/opt/hive/logs
+      - ./hive/conf:/opt/hive/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+    networks:
+      - bigdata
+    restart: unless-stopped
+    command: ["bash", "/opt/bootstrap/scripts/start-hive.sh"]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/10000' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
+
+  spark-master:
+    <<: *hadoop-common
+    hostname: spark-master
+    container_name: spark-master
+    command: ["bash", "/opt/bootstrap/start-spark-master.sh"]
+    depends_on:
+      namenode:
+        condition: service_healthy
+    ports:
+      - "7077:7077"
+      - "8080:8080"
+    volumes:
+      - spark_master_logs:/opt/spark/logs
+      - ./spark/conf:/opt/bootstrap/spark-conf:ro
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 70s
+
+  spark-worker1:
+    <<: *hadoop-common
+    hostname: spark-worker1
+    container_name: spark-worker1
+    command: ["bash", "/opt/bootstrap/start-spark-worker.sh"]
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    ports:
+      - "8081:8081"
+    volumes:
+      - spark_worker1_logs:/opt/spark/logs
+      - ./spark/conf:/opt/bootstrap/spark-conf:ro
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+
+  spark-worker2:
+    <<: *hadoop-common
+    hostname: spark-worker2
+    container_name: spark-worker2
+    command: ["bash", "/opt/bootstrap/start-spark-worker.sh"]
+    depends_on:
+      spark-master:
+        condition: service_healthy
+    ports:
+      - "8082:8081"
+    volumes:
+      - spark_worker2_logs:/opt/spark/logs
+      - ./spark/conf:/opt/bootstrap/spark-conf:ro
+      - ./conf:/opt/bootstrap/conf:ro
+      - ./scripts:/opt/bootstrap/scripts:ro
+
+  jupyter:
+    build:
+      context: ./docker/jupyter
+      args:
+        SPARK_VERSION: ${SPARK_VERSION}
+    hostname: jupyter
+    container_name: jupyter
+    env_file:
+      - .env
+    environment:
+      TZ: ${TZ}
+      JUPYTER_TOKEN: ${JUPYTER_TOKEN}
+      SPARK_MASTER: spark://spark-master:7077
+      HADOOP_CONF_DIR: /opt/hadoop-conf
+      YARN_CONF_DIR: /opt/hadoop-conf
+      PYSPARK_PYTHON: python3
+      PYSPARK_DRIVER_PYTHON: jupyter
+      PYSPARK_DRIVER_PYTHON_OPTS: notebook --NotebookApp.token=${JUPYTER_TOKEN} --NotebookApp.allow_origin='*' --ip=0.0.0.0 --port=8888 --no-browser --NotebookApp.notebook_dir=/workspace
+    depends_on:
+      spark-master:
+        condition: service_healthy
+      hiveserver2:
+        condition: service_healthy
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/workspace
+      - ./datasets:/datasets
+      - ./jupyter/hadoop-conf:/opt/hadoop-conf:ro
+    networks:
+      - bigdata
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8888/api >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+
+networks:
+  bigdata:
+    driver: bridge
+
+volumes:
+  namenode_data:
+  namenode_logs:
+  datanode1_data:
+  datanode1_logs:
+  datanode2_data:
+  datanode2_logs:
+  datanode3_data:
+  datanode3_logs:
+  rm_logs:
+  nm1_logs:
+  nm2_logs:
+  nm3_logs:
+  history_logs:
+  postgres_data:
+  hive_logs:
+  spark_master_logs:
+  spark_worker1_logs:
+  spark_worker2_logs:
