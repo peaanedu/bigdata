@@ -1,0 +1,6 @@
+date,region,product,quantity,unit_price,total
+2026-01-01,Phnom Penh,Laptop,4,800,3200
+2026-01-02,Siem Reap,Keyboard,10,25,250
+2026-01-03,Battambang,Mouse,12,15,180
+2026-01-04,Phnom Penh,Monitor,6,180,1080
+2026-01-05,Kampot,Printer,2,220,440
