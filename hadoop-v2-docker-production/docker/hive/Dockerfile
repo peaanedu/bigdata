@@ -21,7 +21,12 @@ RUN wget -q https://downloads.apache.org/hadoop/common/hadoop-${HADOOP_VERSION}/
     && mv /opt/hadoop-${HADOOP_VERSION} /opt/hadoop \
     && rm -f /tmp/hadoop.tgz
 
-RUN wget -q https://downloads.apache.org/hive/hive-${HIVE_VERSION}/apache-hive-${HIVE_VERSION}-bin.tar.gz -O /tmp/hive.tgz \
+#RUN wget -q https://downloads.apache.org/hive/hive-${HIVE_VERSION}/apache-hive-${HIVE_VERSION}-bin.tar.gz -O /tmp/hive.tgz \
+ #   && tar -xzf /tmp/hive.tgz -C /opt \
+ #  && mv /opt/apache-hive-${HIVE_VERSION}-bin /opt/hive \
+ #  && rm -f /tmp/hive.tgz
+# Add new
+RUN wget -q https://archive.apache.org/dist/hive/hive-${HIVE_VERSION}/apache-hive-${HIVE_VERSION}-bin.tar.gz -O /tmp/hive.tgz \
     && tar -xzf /tmp/hive.tgz -C /opt \
     && mv /opt/apache-hive-${HIVE_VERSION}-bin /opt/hive \
     && rm -f /tmp/hive.tgz
