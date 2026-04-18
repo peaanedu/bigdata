@@ -1,0 +1,4 @@
+hello hadoop
+hello docker
+map reduce on ubuntu
+hello cluster

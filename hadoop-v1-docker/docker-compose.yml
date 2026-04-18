@@ -1,0 +1,134 @@
+version: "3.9"
+
+x-hadoop-common: &hadoop-common
+  build:
+    context: .
+    args:
+      HADOOP_VERSION: ${HADOOP_VERSION}
+  image: hadoop-v1:${HADOOP_VERSION}
+  env_file:
+    - .env
+  networks:
+    - hadoopnet
+  volumes:
+    - ./data:/data
+
+services:
+  namenode:
+    <<: *hadoop-common
+    container_name: namenode
+    hostname: namenode
+    environment:
+      SERVICE_NAME: namenode
+      CLUSTER_NAME: ${CLUSTER_NAME}
+    ports:
+      - "9870:9870"
+      - "9000:9000"
+    volumes:
+      - ./data:/data
+      - namenode_data:/hadoop/dfs/name
+
+  datanode1:
+    <<: *hadoop-common
+    container_name: datanode1
+    hostname: datanode1
+    environment:
+      SERVICE_NAME: datanode
+      NODE_ID: 1
+    ports:
+      - "9864:9864"
+    volumes:
+      - ./data:/data
+      - datanode1_data:/hadoop/dfs/data
+    depends_on:
+      - namenode
+
+  datanode2:
+    <<: *hadoop-common
+    container_name: datanode2
+    hostname: datanode2
+    environment:
+      SERVICE_NAME: datanode
+      NODE_ID: 2
+    volumes:
+      - ./data:/data
+      - datanode2_data:/hadoop/dfs/data
+    depends_on:
+      - namenode
+
+  datanode3:
+    <<: *hadoop-common
+    container_name: datanode3
+    hostname: datanode3
+    environment:
+      SERVICE_NAME: datanode
+      NODE_ID: 3
+    volumes:
+      - ./data:/data
+      - datanode3_data:/hadoop/dfs/data
+    depends_on:
+      - namenode
+
+  resourcemanager:
+    <<: *hadoop-common
+    container_name: resourcemanager
+    hostname: resourcemanager
+    environment:
+      SERVICE_NAME: resourcemanager
+    ports:
+      - "8088:8088"
+      - "8032:8032"
+    depends_on:
+      - namenode
+
+  nodemanager1:
+    <<: *hadoop-common
+    container_name: nodemanager1
+    hostname: nodemanager1
+    environment:
+      SERVICE_NAME: nodemanager
+      NODE_ID: 1
+    depends_on:
+      - resourcemanager
+
+  nodemanager2:
+    <<: *hadoop-common
+    container_name: nodemanager2
+    hostname: nodemanager2
+    environment:
+      SERVICE_NAME: nodemanager
+      NODE_ID: 2
+    depends_on:
+      - resourcemanager
+
+  nodemanager3:
+    <<: *hadoop-common
+    container_name: nodemanager3
+    hostname: nodemanager3
+    environment:
+      SERVICE_NAME: nodemanager
+      NODE_ID: 3
+    depends_on:
+      - resourcemanager
+
+  historyserver:
+    <<: *hadoop-common
+    container_name: historyserver
+    hostname: historyserver
+    environment:
+      SERVICE_NAME: historyserver
+    ports:
+      - "19888:19888"
+    depends_on:
+      - namenode
+      - resourcemanager
+
+networks:
+  hadoopnet:
+    driver: bridge
+
+volumes:
+  namenode_data:
+  datanode1_data:
+  datanode2_data:
+  datanode3_data:
