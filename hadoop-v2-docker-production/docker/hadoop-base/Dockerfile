@@ -22,11 +22,16 @@ RUN wget -q https://downloads.apache.org/hadoop/common/hadoop-${HADOOP_VERSION}/
     && mv /opt/hadoop-${HADOOP_VERSION} /opt/hadoop \
     && rm -f /tmp/hadoop.tgz
 
-RUN wget -q https://downloads.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz -O /tmp/spark.tgz \
+#   RUN wget -q https://downloads.apache.org/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz -O /tmp/spark.tgz \
+#    && tar -xzf /tmp/spark.tgz -C /opt \
+#    && mv /opt/spark-${SPARK_VERSION}-bin-hadoop3 /opt/spark \
+ #   && rm -f /tmp/spark.tgz
+# Add new
+RUN wget -q https://archive.apache.org/dist/spark/spark-${SPARK_VERSION}/spark-${SPARK_VERSION}-bin-hadoop3.tgz -O /tmp/spark.tgz \
     && tar -xzf /tmp/spark.tgz -C /opt \
     && mv /opt/spark-${SPARK_VERSION}-bin-hadoop3 /opt/spark \
     && rm -f /tmp/spark.tgz
-
+    
 RUN mkdir -p /hadoop/dfs/name /hadoop/dfs/data /opt/bootstrap/conf /opt/bootstrap/scripts /opt/bootstrap/spark-conf /opt/spark/logs \
     && echo 'export JAVA_HOME=/opt/java/openjdk' >> /opt/hadoop/etc/hadoop/hadoop-env.sh \
     && echo 'export HDFS_NAMENODE_USER=root' >> /opt/hadoop/etc/hadoop/hadoop-env.sh \

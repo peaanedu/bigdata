@@ -19,7 +19,7 @@ services:
     <<: *hadoop-common
     hostname: namenode
     container_name: namenode
-    command: ["bash", "/opt/bootstrap/start-namenode.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-namenode.sh"]
     ports:
       - "9870:9870"
       - "8020:8020"
@@ -33,14 +33,14 @@ services:
       test: ["CMD-SHELL", "curl -fsS http://localhost:9870/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 60s
+      retries: 15
+      start_period: 120s
 
   datanode1:
     <<: *hadoop-common
     hostname: datanode1
     container_name: datanode1
-    command: ["bash", "/opt/bootstrap/start-datanode.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-datanode.sh"]
     depends_on:
       namenode:
         condition: service_healthy
@@ -50,17 +50,17 @@ services:
       - ./conf:/opt/bootstrap/conf:ro
       - ./scripts:/opt/bootstrap/scripts:ro
     healthcheck:
-      test: ["CMD-SHELL", "jps | grep -q DataNode"]
+      test: ["CMD-SHELL", "pgrep -f DataNode >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 60s
+      retries: 15
+      start_period: 120s
 
   datanode2:
     <<: *hadoop-common
     hostname: datanode2
     container_name: datanode2
-    command: ["bash", "/opt/bootstrap/start-datanode.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-datanode.sh"]
     depends_on:
       namenode:
         condition: service_healthy
@@ -69,12 +69,18 @@ services:
       - datanode2_logs:/opt/hadoop/logs
       - ./conf:/opt/bootstrap/conf:ro
       - ./scripts:/opt/bootstrap/scripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f DataNode >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
 
   datanode3:
     <<: *hadoop-common
     hostname: datanode3
     container_name: datanode3
-    command: ["bash", "/opt/bootstrap/start-datanode.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-datanode.sh"]
     depends_on:
       namenode:
         condition: service_healthy
@@ -83,12 +89,18 @@ services:
       - datanode3_logs:/opt/hadoop/logs
       - ./conf:/opt/bootstrap/conf:ro
       - ./scripts:/opt/bootstrap/scripts:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f DataNode >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 15
+      start_period: 120s
 
   resourcemanager:
     <<: *hadoop-common
     hostname: resourcemanager
     container_name: resourcemanager
-    command: ["bash", "/opt/bootstrap/start-resourcemanager.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-resourcemanager.sh"]
     depends_on:
       namenode:
         condition: service_healthy
@@ -99,18 +111,25 @@ services:
       - rm_logs:/opt/hadoop/logs
       - ./conf:/opt/bootstrap/conf:ro
       - ./scripts:/opt/bootstrap/scripts:ro
+#    healthcheck:
+#      test: ["CMD-SHELL", "curl -fsS http://localhost:8088/ws/v1/cluster/info >/dev/null || exit 1"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 20
+#      start_period: 120s
+
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8088/ws/v1/cluster/info >/dev/null || exit 1"]
+      test: ["CMD-SHELL", "pgrep -f org.apache.hadoop.yarn.server.resourcemanager.ResourceManager >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 70s
+      retries: 20
+      start_period: 180s
 
   nodemanager1:
     <<: *hadoop-common
     hostname: nodemanager1
     container_name: nodemanager1
-    command: ["bash", "/opt/bootstrap/start-nodemanager.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-nodemanager.sh"]
     depends_on:
       resourcemanager:
         condition: service_healthy
@@ -123,7 +142,7 @@ services:
     <<: *hadoop-common
     hostname: nodemanager2
     container_name: nodemanager2
-    command: ["bash", "/opt/bootstrap/start-nodemanager.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-nodemanager.sh"]
     depends_on:
       resourcemanager:
         condition: service_healthy
@@ -136,7 +155,7 @@ services:
     <<: *hadoop-common
     hostname: nodemanager3
     container_name: nodemanager3
-    command: ["bash", "/opt/bootstrap/start-nodemanager.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-nodemanager.sh"]
     depends_on:
       resourcemanager:
         condition: service_healthy
@@ -149,7 +168,7 @@ services:
     <<: *hadoop-common
     hostname: historyserver
     container_name: historyserver
-    command: ["bash", "/opt/bootstrap/start-historyserver.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-historyserver.sh"]
     depends_on:
       resourcemanager:
         condition: service_healthy
@@ -163,8 +182,8 @@ services:
       test: ["CMD-SHELL", "curl -fsS http://localhost:19888/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 70s
+      retries: 15
+      start_period: 120s
 
   postgres:
     image: postgres:${POSTGRES_VERSION}
@@ -185,10 +204,11 @@ services:
       - bigdata
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432 -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
       interval: 20s
       timeout: 5s
-      retries: 10
+      retries: 20
+      start_period: 60s
 
   hive-metastore:
     build:
@@ -223,8 +243,8 @@ services:
       test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/9083' || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 90s
+      retries: 15
+      start_period: 120s
 
   hiveserver2:
     build:
@@ -243,6 +263,8 @@ services:
     depends_on:
       hive-metastore:
         condition: service_healthy
+      resourcemanager:
+        condition: service_healthy
     ports:
       - "10000:10000"
       - "10002:10002"
@@ -254,18 +276,24 @@ services:
       - bigdata
     restart: unless-stopped
     command: ["bash", "/opt/bootstrap/scripts/start-hive.sh"]
+#    healthcheck:
+#      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/10000' || exit 1"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 15
+#      start_period: 120s
+# Add new
     healthcheck:
-      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/10000' || exit 1"]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/10000' || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 90s
-
+      retries: 20
+      start_period: 180s
   spark-master:
     <<: *hadoop-common
     hostname: spark-master
     container_name: spark-master
-    command: ["bash", "/opt/bootstrap/start-spark-master.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-spark-master.sh"]
     depends_on:
       namenode:
         condition: service_healthy
@@ -281,14 +309,14 @@ services:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 70s
+      retries: 15
+      start_period: 120s
 
   spark-worker1:
     <<: *hadoop-common
     hostname: spark-worker1
     container_name: spark-worker1
-    command: ["bash", "/opt/bootstrap/start-spark-worker.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-spark-worker.sh"]
     depends_on:
       spark-master:
         condition: service_healthy
@@ -304,7 +332,7 @@ services:
     <<: *hadoop-common
     hostname: spark-worker2
     container_name: spark-worker2
-    command: ["bash", "/opt/bootstrap/start-spark-worker.sh"]
+    command: ["bash", "/opt/bootstrap/scripts/start-spark-worker.sh"]
     depends_on:
       spark-master:
         condition: service_healthy
@@ -352,8 +380,8 @@ services:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8888/api >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
-      retries: 10
-      start_period: 40s
+      retries: 15
+      start_period: 120s
 
 networks:
   bigdata:
